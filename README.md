@@ -1,100 +1,167 @@
-# Hybrid Text Summarization System
+# SummarizeX2
 
-**SummarizeX2** is a focused, local text-summarization application that compares two fundamentally different strategies: a transparent TextRank baseline that selects source sentences and a pretrained DistilBART transformer that writes a new summary. Text and inference stay on the user's machine; there are no LLM or hosted-inference API calls.
+SummarizeX2 is a local text-summarization application with two methods:
 
-The dark, two-panel interface presents these methods as **Extract** and **Rewrite** so users can choose based on the desired result rather than the underlying implementation. The project is intentionally narrow enough to explain in an interview and complete enough to demonstrate NLP preprocessing, graph ranking, transformer inference, API design, evaluation, and frontend integration.
+- **Extractive (TextRank):** ranks source sentences and returns the strongest sentences unchanged.
+- **Abstractive (DistilBART):** generates new wording with `sshleifer/distilbart-cnn-12-6` by default.
 
-## Why compare both approaches?
+The React frontend calls a FastAPI backend. No hosted inference service or API key is required. Abstractive inference runs locally with PyTorch and downloads model weights from Hugging Face on first use.
 
-**Extractive / TextRank** is fast, deterministic, and auditable. It represents sentences as normalized term-frequency vectors, connects similar sentences in a weighted graph, and applies PageRank. Its output is factually conservative because every sentence came from the input, but it can feel repetitive or disjointed.
+## Features
 
-**Abstractive / DistilBART** can compress and combine ideas into more natural prose. It is a smaller CNN/DailyMail-tuned BART variant, chosen as the default because it is more practical for CPU demos than `facebook/bart-large-cnn`. Long documents use hierarchical map-reduce summarization: every chunk first receives its own useful summary budget, then a final model pass consolidates those candidates and removes repetition. Its trade-offs are slower inference, greater memory use, and the possibility of unsupported details. Set `SUMMARIZER_MODEL=facebook/bart-large-cnn` to compare against the full model without changing code.
+- Extractive and abstractive summaries from the same interface
+- Configurable target length from 20 to 250 words
+- Input validation up to 50,000 characters
+- Original word count, summary word count, compression ratio, and processing time
+- Lazy transformer loading: extractive requests and health checks do not load DistilBART
+- Hierarchical map-reduce summarization for inputs larger than the model context window
+- Extractive fallback when abstractive output is too short or repetitive
+- ROUGE-1, ROUGE-2, and ROUGE-L evaluation on eight bundled samples
+- Docker Compose and native Windows workflows
 
 ## Architecture
 
 ```text
-┌──────────────────── React / Tailwind ────────────────────┐
-│ text · method · target length  →  summary · local stats │
-└──────────────────────────┬───────────────────────────────┘
-                           │ POST /summarize
-┌──────────────────────────▼───────────────────────────────┐
-│                        FastAPI                           │
-│  request validation · dispatch · compression · timing   │
-└───────────────┬─────────────────────────┬────────────────┘
-                │                         │
-     ┌──────────▼──────────┐   ┌──────────▼───────────────┐
-     │ TextRank            │   │ Local DistilBART         │
-     │ tokenize → clean →  │   │ lazy load → tokenize →  │
-     │ cosine graph → rank │   │ map chunks → consolidate│
-     └──────────┬──────────┘   └──────────┬───────────────┘
-                └──────────────┬──────────┘
-                               ▼
-                  ROUGE-1 / ROUGE-2 / ROUGE-L
+Browser
+  |
+  | HTTP/JSON
+  v
+React 19 + Vinext + Tailwind CSS
+  |
+  | POST /summarize
+  v
+FastAPI
+  |-- request validation and response statistics
+  |-- extractive -> tokenize -> normalize -> cosine graph -> PageRank
+  `-- abstractive -> normalize -> lazy model load -> chunk -> map/reduce
+                                                `-> TextRank fallback if degenerate
+
+Evaluation CLI -> both summarizers -> rouge-score -> results.md + results.csv
 ```
 
-## Quick start with Docker
+### Extractive pipeline
 
-Docker downloads the Python and Node dependencies; the first abstractive request also downloads model weights from Hugging Face Hub. Those weights persist in the `model-cache` volume, and every inference runs inside the local API container.
+`backend/summarizers/extractive.py` splits text into sentences, removes stopwords, applies lightweight rule-based normalization, represents sentences with term-frequency counters, and builds a weighted cosine-similarity graph. PageRank selects important sentences, which are returned in source order. The requested length is a soft upper bound because the method keeps sentences intact; multi-sentence input is capped at roughly 60% of the source length to avoid returning the full text.
 
-```bash
+### Abstractive pipeline
+
+`backend/summarizers/abstractive.py` loads the configured Hugging Face tokenizer and sequence-to-sequence model on the first abstractive request. CUDA is used when PyTorch detects it; otherwise inference runs on CPU. Short inputs use one generation pass. Longer inputs are split into token chunks, summarized independently, and consolidated in a final pass. Repetitive or unusably short output falls back to the extractive summarizer.
+
+## Requirements
+
+For native Windows setup:
+
+- CPython 3.11 or newer from python.org or the Python launcher (`py`)
+- Node.js 22.13 or newer
+- npm
+
+For the container workflow:
+
+- Docker Desktop with Docker Compose
+
+The first abstractive request requires internet access to download model weights. It also needs substantially more memory and disk space than the extractive method.
+
+## Windows setup (Command Prompt)
+
+All commands below are for **Windows Command Prompt**, not PowerShell. Run them from a new `cmd.exe` window.
+
+### 1. Backend
+
+```bat
+cd /d D:\SummarizeX2
+py -3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r backend\requirements-dev.txt
+.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Keep that terminal open. Verify the API at:
+
+- Health: `http://127.0.0.1:8000/health`
+- OpenAPI documentation: `http://127.0.0.1:8000/docs`
+
+If `.venv` already exists and works, do not recreate it; start with the install or Uvicorn command.
+
+### 2. Frontend
+
+Open a second Command Prompt:
+
+```bat
+cd /d D:\SummarizeX2\frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+The frontend already defaults to `http://localhost:8000`. To use a different backend URL:
+
+```bat
+cd /d D:\SummarizeX2\frontend
+copy .env.example .env.local
+notepad .env.local
+npm run dev
+```
+
+Set `NEXT_PUBLIC_API_URL` in `.env.local`, then restart the frontend.
+
+## Docker Compose
+
+From Windows Command Prompt:
+
+```bat
+cd /d D:\SummarizeX2
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000). API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
+Open `http://localhost:3000`. The API is exposed at `http://localhost:8000`. Model files are stored in the named `model-cache` volume, so subsequent container starts reuse them.
 
-After the model has been cached, set `SUMMARIZER_OFFLINE=1` in the environment to prevent Hugging Face from checking the network:
-
-```bash
-SUMMARIZER_OFFLINE=1 docker compose up
-```
-
-## Run without Docker
-
-Prerequisites: standard CPython 3.11+, Node.js 22+, and npm. PyTorch does not publish wheels for MSYS Python distributions.
-
-### Windows Command Prompt
-
-From the project root, start the API:
+After the model has been downloaded into that volume, offline mode can prevent Hugging Face network checks:
 
 ```bat
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install -r backend\requirements-dev.txt
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+cd /d D:\SummarizeX2
+set SUMMARIZER_OFFLINE=1
+docker compose up
 ```
 
-Open a second Command Prompt, return to the project root, and start the frontend:
+Offline mode fails if the selected model is not already cached.
+
+## Configuration
+
+| Variable | Used by | Default | Purpose |
+|---|---|---|---|
+| `SUMMARIZER_MODEL` | Backend | `sshleifer/distilbart-cnn-12-6` | Hugging Face model ID or local model path |
+| `SUMMARIZER_OFFLINE` | Backend | `0` | Set to `1` to load only cached/local model files |
+| `HF_HOME` | Hugging Face libraries | Library default; `/models/huggingface` in Docker | Model and tokenizer cache location |
+| `NEXT_PUBLIC_API_URL` | Frontend | `http://localhost:8000` | Backend base URL used by the browser |
+
+For a one-terminal native backend override in Command Prompt:
 
 ```bat
-cd frontend
-npm ci
-npm run dev
+cd /d D:\SummarizeX2
+set SUMMARIZER_MODEL=facebook/bart-large-cnn
+.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
-
-### macOS or Linux
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r backend/requirements-dev.txt
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-In another terminal:
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-Copy `frontend/.env.example` to `frontend/.env.local` and change its value only if the API is not at `http://localhost:8000`.
+The larger BART model requires a separate download and more resources.
 
 ## API
 
-`POST /summarize` accepts raw text, a method, and a soft word budget:
+### `GET /health`
+
+Returns API status plus the configured abstractive model, offline setting, and whether the model is currently loaded. It does not trigger a model download.
+
+### `POST /summarize`
+
+Request fields:
+
+| Field | Type | Constraints | Default |
+|---|---|---|---|
+| `text` | string | Nonblank, 1–50,000 characters | Required |
+| `method` | string | `extractive` or `abstractive` | `extractive` |
+| `length` | integer | 20–250 | `90` |
+
+Example request:
 
 ```json
 {
@@ -104,76 +171,120 @@ Copy `frontend/.env.example` to `frontend/.env.local` and change its value only 
 }
 ```
 
-Example response:
+Example response shape:
 
 ```json
 {
   "summary": "Urban trees cool neighborhoods during heat waves. Cities are expanding tree cover in areas with little shade.",
   "method": "extractive",
   "stats": {
-    "original_words": 21,
-    "summary_words": 15,
+    "original_words": 22,
+    "summary_words": 16,
     "compression_ratio": 0.714,
     "processing_ms": 1
   }
 }
 ```
 
-The word budget is intentionally soft for TextRank so it returns complete sentences. The abstractive path translates the requested word count to an approximate subword-token budget.
+Model loading or inference failures return HTTP `503`. Invalid request data returns HTTP `422`.
 
 ## Evaluation
 
-The repository includes eight compact, human-written news-style samples so the benchmark is reviewable and quick to run. The evaluation script macro-averages ROUGE F1 values and writes both Markdown and CSV files.
+The evaluation set in `eval/sample_data.json` contains eight small, human-written news-style articles with reference summaries. `eval/run_evaluation.py` computes macro-averaged ROUGE F1 scores with stemming and writes:
 
-```bash
-python -m eval.run_evaluation
-# faster baseline-only check
-python -m eval.run_evaluation --method extractive
+- `eval/results.md`
+- `eval/results.csv`
+
+Install the development requirements first, then run from the project root:
+
+```bat
+cd /d D:\SummarizeX2
+.venv\Scripts\python.exe -m eval.run_evaluation
 ```
 
-| Method | ROUGE-1 | ROUGE-2 | ROUGE-L | Status |
-|---|---:|---:|---:|---|
-| TextRank | 0.3684 | 0.1584 | 0.2996 | Measured on the bundled 8-sample set |
-| DistilBART | — | — | — | Pending the one-time model-weight download |
+Useful variants:
 
-The extractive numbers were generated with `rouge-score` in the verified local runtime. The model host did not complete the large DistilBART weight transfer during the build session, so that row is deliberately blank rather than fabricated. Running the default command populates both rows in `eval/results.md` and `eval/results.csv`.
+```bat
+rem Fast baseline-only run
+.venv\Scripts\python.exe -m eval.run_evaluation --method extractive
 
-## Tests
+rem Abstractive-only run with the default 40-word target
+.venv\Scripts\python.exe -m eval.run_evaluation --method abstractive
 
-```bash
-pytest backend/tests -q
-cd frontend && npm run build
+rem Both methods with a different target and output directory
+.venv\Scripts\python.exe -m eval.run_evaluation --method both --length 60 --output eval
 ```
 
-The backend tests cover preprocessing, extractive behavior, request validation, response statistics, and the guarantee that blank abstractive input does not load the model.
+Available arguments:
 
-## Project layout
+- `--method extractive|abstractive|both` (default: `both`)
+- `--length N` (default: `40` words)
+- `--data PATH` (default: `eval/sample_data.json`)
+- `--output PATH` (default: `eval`)
+
+Each run overwrites `results.md` and `results.csv` in the selected output directory. A single-method run therefore writes only that method. The checked-in results currently contain the measured extractive baseline; the abstractive row remains unreported until the model evaluation completes:
+
+| Method | ROUGE-1 F1 | ROUGE-2 F1 | ROUGE-L F1 | Samples |
+|---|---:|---:|---:|---:|
+| Extractive | 0.3684 | 0.1584 | 0.2996 | 8 |
+| Abstractive | Not yet measured | Not yet measured | Not yet measured | 8 |
+
+This is a small regression benchmark, not a claim of general model quality. ROUGE measures lexical overlap and does not establish factual consistency or human preference.
+
+## Tests and frontend scripts
+
+Run backend tests from the project root:
+
+```bat
+cd /d D:\SummarizeX2
+.venv\Scripts\python.exe -m pytest backend\tests -q
+```
+
+Frontend commands run from `D:\SummarizeX2\frontend`:
+
+```bat
+npm run lint
+npm run build
+npm run start
+```
+
+`npm run start` serves the production build and should be run after `npm run build`. Use `npm run format` to format frontend source files.
+
+Backend tests cover request validation, response statistics, TextRank preprocessing and compression, lazy model status, input normalization, hierarchical generation, and degenerate-output detection. The transformer tests use test doubles and do not download DistilBART weights.
+
+## Project structure
 
 ```text
-backend/
-  main.py                    FastAPI application
-  summarizers/
-    extractive.py            from-scratch TextRank
-    abstractive.py           lazy local transformer inference
-  tests/
-eval/
-  sample_data.json           small reviewable benchmark
-  run_evaluation.py          ROUGE runner and table writer
-frontend/
-  app/page.tsx               two-panel summarization interface
-  app/globals.css            black-and-brown visual theme
-Dockerfile                   shared multi-target image definition
-docker-compose.yml           one-command local stack
+SummarizeX2/
+|-- backend/
+|   |-- main.py                         FastAPI application and schemas
+|   |-- requirements.txt                Runtime Python dependencies
+|   |-- requirements-dev.txt            Runtime plus test dependencies
+|   |-- summarizers/
+|   |   |-- extractive.py               TextRank implementation and CLI
+|   |   `-- abstractive.py              Local transformer pipeline and CLI
+|   `-- tests/                           Backend unit and API tests
+|-- eval/
+|   |-- sample_data.json                Eight-sample evaluation set
+|   |-- run_evaluation.py               ROUGE evaluation CLI
+|   |-- results.md                      Human-readable results
+|   `-- results.csv                     Machine-readable results
+|-- frontend/
+|   |-- app/                             Vinext page, layout, and styles
+|   |-- components/ui/                   Reusable controls
+|   |-- public/                          Static assets
+|   |-- .env.example                    Frontend API URL example
+|   `-- package.json                    Frontend dependencies and scripts
+|-- Dockerfile                           Backend and frontend build targets
+`-- docker-compose.yml                  Local two-service stack and model cache
 ```
 
-## What I would improve with more time
+## Scope and limitations
 
-1. **Evaluate on a recognized held-out corpus.** The bundled micro benchmark catches regressions, but a fixed CNN/DailyMail or XSum subset with recorded dataset and model revisions would make comparisons reproducible and more credible.
-2. **Add factuality checks.** ROUGE rewards lexical overlap, not truthfulness. I would pair it with entity/number consistency checks and a semantic factuality metric, then review failure cases manually.
-3. **Fine-tune for a target domain.** Rather than training a large model from scratch, I would use parameter-efficient fine-tuning on representative documents and evaluate whether gains justify the added maintenance and hardware cost.
-4. **Make long-document chunking section-aware.** The current hierarchical pipeline prevents one oversized opening chunk from dominating, but a stronger version would split on headings and paragraphs, preserve section provenance, and allocate intermediate budgets according to salience.
-5. **Calibrate length controls.** The UI asks for words while generation operates on subword tokens. I would learn a model-specific calibration curve and report the achieved budget distribution.
-6. **Add multi-document provenance.** For research or briefing workflows, I would preserve sentence-level citations and surface disagreements across sources rather than producing one unqualified narrative.
-7. **Measure operational behavior.** Startup time, peak memory, tokens per second, and CPU/GPU comparisons matter for a local product and would turn model selection into an evidence-based engineering decision.
-
-These improvements are intentionally omitted from the MVP: each adds a meaningful research or product question, and none is required to demonstrate the end-to-end fundamentals.
+- Text input only; there is no file upload or document parser.
+- Submitted text is not persisted by the backend.
+- Extractive length is a soft sentence-preserving budget.
+- Abstractive length is converted from words to an approximate subword-token range.
+- DistilBART is trained for news summarization and may perform poorly on other domains.
+- Abstractive summaries can omit or introduce details; review important output against the source.
+- The bundled evaluation is intentionally small and should be expanded before drawing comparative conclusions.
