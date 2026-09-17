@@ -1,0 +1,13 @@
+.venv/
+.runtime-venv/
+.cpython/
+.hf-cache/
+python-*-amd64.exe
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+frontend/node_modules/
+frontend/.vinext/
+frontend/dist/
+.cache/

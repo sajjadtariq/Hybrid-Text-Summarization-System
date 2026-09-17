@@ -1,0 +1,42 @@
+[
+  {
+    "id": "urban-trees",
+    "article": "Urban trees cool neighborhoods by shading streets and releasing moisture into the air. Researchers measured temperatures across several districts during a summer heat wave. Blocks with mature tree cover were substantially cooler in the afternoon than nearby blocks with little shade. Trees also absorb carbon dioxide and filter some air pollutants. The largest benefits appeared in densely built neighborhoods. City planners said the results support planting programs that prioritize areas with high heat exposure. The researchers cautioned that young trees need years of care before providing a large cooling effect.",
+    "reference": "Mature urban trees made city blocks cooler during a heat wave, supporting planting programs in densely built, high-exposure neighborhoods. Researchers noted that young trees require years of care before delivering the same benefits."
+  },
+  {
+    "id": "battery-recycling",
+    "article": "A new recycling plant has begun recovering lithium, nickel, and cobalt from used electric vehicle batteries. The company says its chemical process can recover more than ninety percent of the valuable metals. Recovered materials will be sold back to battery manufacturers. Analysts say domestic recycling could reduce demand for newly mined minerals and make supply chains more resilient. The plant will initially process manufacturing scrap before accepting larger volumes of end-of-life vehicle packs. Environmental groups welcomed the project but called for independent reporting on its energy use and waste streams.",
+    "reference": "A new battery recycling plant will recover lithium, nickel, and cobalt for reuse by manufacturers, potentially reducing mining and strengthening supply chains. Environmental groups want independent data on the process's energy use and waste."
+  },
+  {
+    "id": "remote-work",
+    "article": "A two-year workplace study tracked employees who could work from home two days each week. Hybrid workers were no less productive than colleagues who remained in the office full time. They also reported higher job satisfaction and were less likely to resign. Managers initially worried that mentorship would decline, but scheduled team days preserved most face-to-face collaboration. The study took place at one technology company, so its authors warned against applying the results to every occupation. They recommended that organizations measure outcomes rather than office attendance alone.",
+    "reference": "A two-year study found that working from home two days a week maintained productivity, improved job satisfaction, and reduced resignations. The authors cautioned that results from one technology company may not generalize to every job."
+  },
+  {
+    "id": "coral-restoration",
+    "article": "Marine biologists are testing heat-tolerant corals on a damaged reef. Small fragments are grown in underwater nurseries and then attached to the reef after several months. During a recent heat event, many transplanted corals survived while surrounding colonies bleached. Scientists say this is encouraging but does not remove the need to reduce greenhouse gas emissions. Restoring a small area is expensive and cannot replace entire reef ecosystems. The next phase will examine whether the transplanted corals reproduce and support fish populations over time.",
+    "reference": "Heat-tolerant corals grown in nurseries survived a recent bleaching event after transplantation to a damaged reef. Scientists say restoration is promising but costly, limited in scale, and no substitute for reducing emissions."
+  },
+  {
+    "id": "school-breakfast",
+    "article": "A school district began offering free breakfast to every student instead of requiring families to apply. Participation rose sharply during the first semester. Teachers reported fewer late arrivals and said students appeared more focused during morning lessons. The district paid for the program with a combination of federal reimbursement and local funds. Officials have not yet determined whether test scores changed. They plan to compare attendance, discipline, and academic data after a full school year.",
+    "reference": "Universal free breakfast increased participation and coincided with fewer late arrivals and better morning focus, according to teachers. The district will evaluate attendance, discipline, and academic results after a full year."
+  },
+  {
+    "id": "flood-warning",
+    "article": "Engineers installed a network of low-cost river sensors across a flood-prone region. The devices measure water level and rainfall every five minutes and transmit readings over a mobile network. A forecasting system combines the data with weather predictions to send earlier warnings to downstream towns. Emergency managers received nearly two additional hours of notice during the first major storm. Several sensors failed when debris struck their mounts, however. The team is redesigning the housings before the next rainy season.",
+    "reference": "Low-cost river sensors gave downstream towns nearly two extra hours of flood warning during a major storm. Engineers are strengthening the devices after debris damaged several sensor mounts."
+  },
+  {
+    "id": "public-transit",
+    "article": "The city introduced dedicated bus lanes on three crowded corridors last year. Average journey times fell by twelve percent even as ridership increased. Traffic delays for private cars rose slightly during the morning peak but returned to previous levels after signal timings were adjusted. Businesses along the routes had worried about lost parking spaces. A follow-up survey found most customers arrived by walking or public transport. Officials are considering two additional corridors while studying loading access for deliveries.",
+    "reference": "Dedicated bus lanes reduced average journey times by twelve percent as ridership grew. Car delays eased after signal changes, and the city is considering expanding the program while improving delivery access."
+  },
+  {
+    "id": "medical-ai",
+    "article": "Artificial intelligence is increasingly used to support medical diagnosis, but strong laboratory results do not always translate to hospitals. A model trained at one institution may behave differently when patient demographics, equipment, or workflows change. Several hospitals are now testing systems prospectively before their recommendations influence patient care. Evaluations measure accuracy as well as whether clinicians understand and appropriately act on a prediction. Researchers argue that transparent reporting and continued monitoring are essential because medical data changes over time. They emphasize that artificial intelligence should assist trained professionals rather than replace clinical judgment.",
+    "reference": "Hospitals are prospectively testing diagnostic AI because models may perform differently across patients, equipment, and workflows. Researchers call for transparent reporting, continued monitoring, and tools that support rather than replace clinical judgment."
+  }
+]

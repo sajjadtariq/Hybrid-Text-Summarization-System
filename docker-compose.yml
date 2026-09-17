@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      target: backend
+    environment:
+      HF_HOME: /models/huggingface
+      SUMMARIZER_MODEL: ${SUMMARIZER_MODEL:-sshleifer/distilbart-cnn-12-6}
+      SUMMARIZER_OFFLINE: ${SUMMARIZER_OFFLINE:-0}
+    ports:
+      - "8000:8000"
+    volumes:
+      - model-cache:/models/huggingface
+
+  web:
+    build:
+      context: .
+      target: frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  model-cache:
